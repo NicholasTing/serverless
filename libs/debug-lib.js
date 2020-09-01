@@ -1,32 +1,30 @@
-import * as debug from "./debug-lib";
+import util from "util";
+import AWS from "aws-sdk";
 
-export default function handler(lambda) {
-  return async function (event, context) {
-    let body, statusCode;
+let logs;
 
-    // Start debugger
-    debug.init(event, context);
+// Log AWS SDK calls
+AWS.config.logger = { log: debug };
 
-    try {
-      // Run the Lambda
-      body = await lambda(event, context);
-      statusCode = 200;
-    } catch (e) {
-      // Print debug messages
-      debug.flush(e);
+export default function debug() {
+  logs.push({
+    date: new Date(),
+    string: util.format.apply(null, arguments),
+  });
+}
 
-      body = { error: e.message };
-      statusCode = 500;
-    }
+export function init(event, context) {
+  logs = [];
 
-    // Return HTTP response
-    return {
-      statusCode,
-      body: JSON.stringify(body),
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Credentials": true,
-      },
-    };
-  };
+  // Log API event
+  debug("API event", {
+    body: event.body,
+    pathParameters: event.pathParameters,
+    queryStringParameters: event.queryStringParameters,
+  });
+}
+
+export function flush(e) {
+  logs.forEach(({ date, string }) => console.debug(date, string));
+  console.error(e);
 }
